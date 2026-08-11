@@ -1,0 +1,14 @@
+package com.sriram.srirammart.dao;
+
+import com.sriram.srirammart.model.User;
+
+import java.util.Optional;
+
+public interface UserDAO {
+
+    void save(User user);
+
+    Optional<User> findByEmail(String email);
+
+    Optional<User> findById(long id);
+}
