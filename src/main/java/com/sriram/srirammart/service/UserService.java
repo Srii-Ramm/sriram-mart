@@ -1,18 +1,18 @@
 package com.sriram.srirammart.service;
 
+import com.sriram.srirammart.dao.UserDAO;
 import com.sriram.srirammart.model.Role;
 import com.sriram.srirammart.model.User;
+import org.mindrot.jbcrypt.BCrypt;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 public class UserService {
 
-    private final List<User> users = new ArrayList<>();
-    private long nextUserId = 1;
+    private final UserDAO userDAO;
 
-    public UserService() {
-        seedAdmin();
+    public UserService(UserDAO userDAO) {
+        this.userDAO = userDAO;
     }
 
     public User registerBuyer(String name, String email, String password) {
@@ -23,76 +23,33 @@ public class UserService {
         return createUser(name, email, password, Role.SELLER);
     }
 
+    /** Returns the user if the password matches, otherwise null. */
     public User login(String email, String password) {
-        for (User user : users) {
-            if (user.getEmail().equalsIgnoreCase(email)
-                    && user.getPassword().equals(password)) {
-                return user;
-            }
-        }
+        Optional<User> found = userDAO.findByEmail(email);
 
-        return null;
+        if (found.isEmpty()) return null;
+
+        User user = found.get();
+        return BCrypt.checkpw(password, user.getPasswordHash()) ? user : null;
     }
 
-    private User createUser(String name, String email,
-                            String password, Role role) {
-
+    private User createUser(String name, String email, String password, Role role) {
         validateUserDetails(name, email, password);
 
-        if (emailExists(email)) {
-            throw new IllegalArgumentException(
-                    "An account with this email already exists"
-            );
+        if (userDAO.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("An account with this email already exists");
         }
 
-        User user = new User(
-                nextUserId++,
-                name,
-                email,
-                password,
-                role
-        );
+        String hash = BCrypt.hashpw(password, BCrypt.gensalt());
+        User user = new User(0, name, email, hash, role);
 
-        users.add(user);
-
+        userDAO.save(user);
         return user;
     }
 
-    private boolean emailExists(String email) {
-        for (User user : users) {
-            if (user.getEmail().equalsIgnoreCase(email)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void seedAdmin() {
-        User admin = new User(
-                nextUserId++,
-                "Administrator",
-                "admin@srirammart.com",
-                "admin123",
-                Role.ADMIN
-        );
-
-        users.add(admin);
-    }
-
-    private void validateUserDetails(String name, String email,
-                                     String password) {
-
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Name cannot be empty");
-        }
-
-        if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("Email cannot be empty");
-        }
-
-        if (password == null || password.isBlank()) {
-            throw new IllegalArgumentException("Password cannot be empty");
-        }
+    private void validateUserDetails(String name, String email, String password) {
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("Name cannot be empty");
+        if (email == null || email.isBlank()) throw new IllegalArgumentException("Email cannot be empty");
+        if (password == null || password.isBlank()) throw new IllegalArgumentException("Password cannot be empty");
     }
 }
