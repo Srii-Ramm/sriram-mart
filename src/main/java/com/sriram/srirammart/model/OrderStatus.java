@@ -1,7 +1,9 @@
 package com.sriram.srirammart.model;
 
 public enum OrderStatus {
-    PLACED,
+    PENDING,
     CONFIRMED,
+    SHIPPED,
+    DELIVERED,
     CANCELLED
 }

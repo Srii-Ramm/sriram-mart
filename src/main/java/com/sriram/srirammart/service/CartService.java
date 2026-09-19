@@ -1,79 +1,44 @@
 package com.sriram.srirammart.service;
 
+import com.sriram.srirammart.dao.CartDAO;
 import com.sriram.srirammart.model.Cart;
 import com.sriram.srirammart.model.CartItem;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class CartService {
 
-    private final Map<Long, Cart> carts = new HashMap<>();
+    private final CartDAO cartDAO;
+
+    public CartService(CartDAO cartDAO) {
+        this.cartDAO = cartDAO;
+    }
 
     public Cart getCart(long buyerId) {
-        return carts.computeIfAbsent(
-                buyerId,
-                id -> new Cart(0, id, null)
-        );
+        // CartDAOImpl.findByBuyerId always returns Optional.of(...), never empty,
+        // so this is safe — an empty cart is just a Cart with no items.
+        return cartDAO.findByBuyerId(buyerId).orElse(new Cart(0, buyerId, null));
     }
 
     public void addItem(long buyerId, long productId, int quantity) {
         validateQuantity(quantity);
-
-        Cart cart = getCart(buyerId);
-
-        for (CartItem item : cart.getItems()) {
-            if (item.getProductId() == productId) {
-                item.setQuantity(item.getQuantity() + quantity);
-                return;
-            }
-        }
-
-        cart.getItems().add(
-                new CartItem(productId, quantity)
-        );
+        cartDAO.addItem(buyerId, new CartItem(productId, quantity));
     }
 
     public void updateItem(long buyerId, long productId, int quantity) {
         validateQuantity(quantity);
-
-        Cart cart = getCart(buyerId);
-
-        for (CartItem item : cart.getItems()) {
-            if (item.getProductId() == productId) {
-                item.setQuantity(quantity);
-                return;
-            }
-        }
-
-        throw new IllegalArgumentException(
-                "Product is not in the cart"
-        );
+        cartDAO.updateItem(buyerId, new CartItem(productId, quantity));
     }
 
     public void removeItem(long buyerId, long productId) {
-        Cart cart = getCart(buyerId);
-
-        boolean removed = cart.getItems().removeIf(
-                item -> item.getProductId() == productId
-        );
-
-        if (!removed) {
-            throw new IllegalArgumentException(
-                    "Product is not in the cart"
-            );
-        }
+        cartDAO.removeItem(buyerId, productId);
     }
 
     public void clearCart(long buyerId) {
-        getCart(buyerId).getItems().clear();
+        cartDAO.clearCart(buyerId);
     }
 
     private void validateQuantity(int quantity) {
         if (quantity <= 0) {
-            throw new IllegalArgumentException(
-                    "Quantity must be greater than zero"
-            );
+            throw new IllegalArgumentException("Quantity must be greater than zero");
         }
     }
 }

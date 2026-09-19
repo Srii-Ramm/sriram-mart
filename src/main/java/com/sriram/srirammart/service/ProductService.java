@@ -1,95 +1,60 @@
 package com.sriram.srirammart.service;
 
+import com.sriram.srirammart.dao.ProductDAO;
 import com.sriram.srirammart.model.Product;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class ProductService {
 
-    private final List<Product> products = new ArrayList<>();
-    private long nextProductId = 1;
+    private final ProductDAO productDAO;
 
-    public Product createProduct(long sellerId, String name,
-                                 String description, BigDecimal price,
-                                 int quantity) {
+    public ProductService(ProductDAO productDAO) {
+        this.productDAO = productDAO;
+    }
+
+    public Product createProduct(long sellerId, String name, String description,
+                                  BigDecimal price, int quantity, String category, String imageUrl) {
 
         validateProductDetails(name, price, quantity);
 
-        Product product = new Product(
-                nextProductId++,
-                sellerId,
-                name,
-                description,
-                price,
-                quantity
-        );
-
-        products.add(product);
-
+        Product product = new Product(0, sellerId, name, description, price, quantity, category, imageUrl);
+        productDAO.save(product);
         return product;
     }
 
     public List<Product> getAllProducts() {
-        return new ArrayList<>(products);
+        return productDAO.findAll();
+    }
+
+    public List<Product> getProductsBySeller(long sellerId) {
+        return productDAO.findBySellerId(sellerId);
+    }
+
+    public List<Product> search(String category, String keyword) {
+        return productDAO.search(category, keyword);
     }
 
     public Product getProductById(long id) {
-        for (Product product : products) {
-            if (product.getId() == id) {
-                return product;
-            }
-        }
-
-        return null;
+        return productDAO.findById(id).orElse(null);
     }
 
     public void updateProduct(Product product) {
-        if (product == null) {
-            throw new IllegalArgumentException("Product cannot be null");
-        }
-
-        validateProductDetails(
-                product.getName(),
-                product.getPrice(),
-                product.getQuantity()
-        );
-
-        for (int i = 0; i < products.size(); i++) {
-            if (products.get(i).getId() == product.getId()) {
-                products.set(i, product);
-                return;
-            }
-        }
-
-        throw new IllegalArgumentException("Product not found");
+        validateProductDetails(product.getName(), product.getPrice(), product.getQuantity());
+        productDAO.update(product);
     }
 
     public void deleteProduct(long id) {
-        Product product = getProductById(id);
-
-        if (product == null) {
-            throw new IllegalArgumentException("Product not found");
-        }
-
-        products.remove(product);
+        Optional<Product> product = productDAO.findById(id);
+        if (product.isEmpty()) throw new IllegalArgumentException("Product not found");
+        productDAO.delete(id);
     }
 
-    private void validateProductDetails(String name,
-                                        BigDecimal price,
-                                        int quantity) {
-
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Product name cannot be empty");
-        }
-
-        if (price == null || price.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Price cannot be negative");
-        }
-
-        if (quantity < 0) {
-            throw new IllegalArgumentException("Quantity cannot be negative");
-        }
+    private void validateProductDetails(String name, BigDecimal price, int quantity) {
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("Product name cannot be empty");
+        if (price == null || price.compareTo(BigDecimal.ZERO) < 0) throw new IllegalArgumentException("Price cannot be negative");
+        if (quantity < 0) throw new IllegalArgumentException("Quantity cannot be negative");
     }
 }
